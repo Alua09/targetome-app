@@ -10,7 +10,6 @@ def calculate_hub(file_path):
   and calculates Freeman degree centrality to isolate the critical gene hub.
   """
   try:
-    # Читаем файл с автоопределением разделителя
     try:
       df = pd.read_csv(
           file_path, sep=None, engine='python', comment='#', encoding='utf-8'
@@ -19,10 +18,8 @@ def calculate_hub(file_path):
       df = pd.read_csv(file_path, sep='\t', comment='#', encoding='utf-8')
 
     df = df.dropna(how='all')
-    # Тщательная очистка заголовков от пробелов и скрытых символов BOM
     df.columns = [str(c).strip().lstrip('\ufeff').lower() for c in df.columns]
 
-    # Точный поиск колонки с генами
     gene_col = None
     target_names = [
         'hugo_symbol',
@@ -39,7 +36,6 @@ def calculate_hub(file_path):
         gene_col = col
         break
 
-    # Если по точному имени не нашли, ищем колонку, содержащую известные онкогены
     if gene_col is None:
       for col in df.columns:
         vals = df[col].dropna().astype(str).head(100).tolist()
@@ -77,7 +73,6 @@ def calculate_hub(file_path):
           gene_col = col
           break
 
-    # Если всё еще не нашли, берем первую подходящую текстовую колонку
     if gene_col is None and len(df.columns) > 0:
       for col in df.columns:
         if not any(
@@ -132,7 +127,6 @@ def calculate_hub(file_path):
 
     genes = list(dict.fromkeys(genes))
 
-    # Экстренный пул только если вообще не удалось найти гены в файле
     if len(genes) < 3:
       base_pool = [
           'TP53',
@@ -171,14 +165,12 @@ def calculate_hub(file_path):
       random.seed(seed_int)
       genes = random.sample(base_pool, min(len(base_pool), 25))
 
-    # Ограничение по ползунку (до 300 генов)
     if len(genes) > 300:
       genes = genes[:300]
 
     file_seed = abs(hash(str(file_path))) % 100000
     p_val = max(0.015, min(0.20, 35.0 / max(len(genes), 5)))
 
-    # Построение графа на основе реальных уникальных генов пациента
     G = nx.erdos_renyi_graph(n=len(genes), p=p_val, seed=file_seed)
     mapping = {i: genes[i] for i in range(len(genes))}
     G = nx.relabel_nodes(G, mapping)
@@ -230,7 +222,7 @@ def calculate_hub(file_path):
         'hub': hub,
         'score': score,
         'graph': G,
-        `centrality`: centrality,
+        'centrality': centrality,
         'dataframe': pd.DataFrame({'Gene': base_fallback}),
         'oncokb': {},
     }
