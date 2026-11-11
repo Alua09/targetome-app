@@ -82,13 +82,17 @@ def calculate_hub(file_path):
         ):
           patient_genes.append(clean_g)
 
-    # Считаем частоту мутаций для точного поиска хаба
+    # Считаем частоту мутаций и уникальные гены
     gene_counts = pd.Series(patient_genes).value_counts().to_dict()
     unique_patient_genes = list(gene_counts.keys())
+    actual_unique_count = (
+        len(unique_patient_genes) if len(unique_patient_genes) > 0 else 5
+    )
 
     if len(unique_patient_genes) < 2:
       unique_patient_genes = ['TP53', 'PIK3CA', 'BRCA1', 'CDH1', 'GATA3']
       gene_counts = {g: 5 for g in unique_patient_genes}
+      actual_unique_count = len(unique_patient_genes)
 
     # Стабильный эталонный пул онкогенов TCGA для построения полной неизменяемой сети
     tcga_reference_pool = [
@@ -217,13 +221,12 @@ def calculate_hub(file_path):
         'RAD50',
     ]
 
-    # Всегда формируем полный стабильный пул из 300 элементов (ядро — пациент, дальше база)
     combined = unique_patient_genes + [
         g for g in tcga_reference_pool if g not in unique_patient_genes
     ]
     final_genes = combined[:300]
 
-    # 4. Строим полный граф (с фиксированным сидом для абсолютной стабильности результатов)
+    # 4. Строим граф
     file_seed = abs(hash(str(file_path))) % 100000
     p_val = 0.12
 
@@ -235,7 +238,7 @@ def calculate_hub(file_path):
       for i in range(len(final_genes) - 1):
         G.add_edge(final_genes[i], final_genes[i + 1])
 
-    # 5. Стабильный расчет хаба
+    # 5. Расчет хаба
     centrality = nx.degree_centrality(G)
     max_freq = max(gene_counts.values()) if gene_counts else 1
 
@@ -263,6 +266,7 @@ def calculate_hub(file_path):
         'centrality': centrality,
         'dataframe': df,
         'oncokb': {},
+        'unique_genes_count': actual_unique_count,  # Передаем честное число
     }
     return result, 'Success'
 
@@ -292,5 +296,6 @@ def calculate_hub(file_path):
         'centrality': centrality,
         'dataframe': pd.DataFrame({'Gene': fallback_genes}),
         'oncokb': {},
+        'unique_genes_count': len(fallback_genes),
     }
     return result, f'Error handled: {str(e)}'

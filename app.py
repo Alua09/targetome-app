@@ -205,8 +205,7 @@ if st.session_state.analysis_result is not None:
   df_full = result.get('dataframe')
 
   total_mutations = len(df_full) if df_full is not None else 0
-  unique_genes_count = 0
-  if df_full is not None and not df_full.empty:
+  unique_genes_count = result.get("unique_genes_count", 0)
     clean_cols = [
         str(c).strip().lstrip('\ufeff').lower() for c in df_full.columns
     ]
