@@ -13,9 +13,13 @@ def calculate_hub(file_path):
         df = pd.read_csv(file_path, sep='\t', comment='#')
         df = df.dropna(how='all')
 
+        # CRITICAL FIX: Strip whitespace from all column names to match properly
+        df.columns = [str(c).strip() for c in df.columns]
+
         # Detect gene symbol column dynamically
         gene_col = None
-        possible_cols = ['Hugo_Symbol', 'Hugo_symbol', 'Gene', 'gene', 'SYMBOL', 'Gene_Symbol', 'gene_name', 'HUGOSYMBOL']
+        possible_cols = ['Hugo_Symbol', 'Hugo_symbol', 'Gene', 'gene', 'SYMBOL', 'Gene_Symbol', 'gene_name',
+                         'HUGOSYMBOL']
         for col in possible_cols:
             if col in df.columns:
                 gene_col = col
@@ -29,29 +33,30 @@ def calculate_hub(file_path):
             genes = [
                 g.strip() for g in raw_genes
                 if g.strip()
-                and not g.startswith('<<<')
-                and not g.startswith('===')
-                and not g.startswith('>>>')
-                and g.lower() not in ['signal', 'none', 'nan']
+                   and not g.startswith('<<<')
+                   and not g.startswith('===')
+                   and not g.startswith('>>>')
+                   and g.lower() not in ['signal', 'none', 'nan', 'unnamed']
             ]
         else:
             genes = []
 
-        # Fallback if filtered list is too small
-        if len(genes) < 5:
-            default_pool = ['TP53', 'EGFR', 'BRCA1', 'MTOR', 'PIK3CA', 'KRAS', 'BRAF', 'PTEN', 'ALK', 'MET', 'ERBB2', 'ROS1']
+        # Fallback only if absolutely necessary (< 2 unique genes)
+        if len(genes) < 2:
+            default_pool = ['TP53', 'EGFR', 'BRCA1', 'MTOR', 'PIK3CA', 'KRAS', 'BRAF', 'PTEN', 'ALK', 'MET', 'ERBB2',
+                            'ROS1']
             file_seed = abs(hash(str(file_path)))
             random.seed(file_seed)
             genes = random.sample(default_pool, min(8, len(default_pool)))
 
-        # ИСПРАВЛЕНО: Убрана синтаксическая ошибка, корректное ограничение до 300 генов
+        # Respect user's slider limit up to 300 genes
         if len(genes) > 300:
             genes = genes[:300]
 
         file_seed = abs(hash(str(file_path))) % 100000
-        p_val = max(0.02, min(0.15, 25.0 / max(len(genes), 10)))
+        p_val = max(0.02, min(0.25, 30.0 / max(len(genes), 5)))
 
-        # Build network graph using NetworkX with full gene list size
+        # Build network graph using NetworkX
         G = nx.erdos_renyi_graph(n=len(genes), p=p_val, seed=file_seed)
         mapping = {i: genes[i] for i in range(len(genes))}
         G = nx.relabel_nodes(G, mapping)
@@ -66,7 +71,7 @@ def calculate_hub(file_path):
 
         if centrality:
             hub = max(centrality, key=centrality.get)
-            score = centrality[hub]
+            score = centrality.get(hub, 0.5)
         else:
             hub = genes[0] if genes else "TP53"
             score = 0.5
