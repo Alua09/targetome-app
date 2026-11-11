@@ -321,25 +321,12 @@ if st.session_state.analysis_result is not None:
                 z = cz + r * np.cos(phi)
                 pos_3d[node] = (x, y, z)
 
-            # Pearlescent, ribbed, and bumpy 3D cell membrane
-            phi_m = np.linspace(0, np.pi, 35)
-            theta_m = np.linspace(0, 2 * np.pi, 35)
             PHI, THETA = np.meshgrid(phi_m, theta_m)
-
-            r_noise = R_mesh * (1.0 + 0.09 * np.sin(6 * PHI) * np.cos(8 * THETA) + 0.05 * np.sin(15 * THETA))
-
-            X_m = (cx + r_noise * np.sin(PHI) * np.cos(THETA)).flatten()
-            Y_m = (cy + r_noise * np.sin(PHI) * np.sin(THETA)).flatten()
-            Z_m = (cz + r_noise * np.cos(PHI)).flatten()
 
             cell_membrane_3d = go.Mesh3d(
                 x=X_m, y=Y_m, z=Z_m,
                 alphahull=0,
-                opacity=0.20,
-                color='#cbd5e1',
                 showscale=False,
-                flatshading=True,
-                lighting=dict(ambient=0.6, diffuse=0.9, specular=0.8, roughness=0.15),
                 hoverinfo='none'
             )
 
