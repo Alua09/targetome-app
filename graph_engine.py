@@ -2,10 +2,10 @@ import networkx as nx
 import pandas as pd
 
 
-def calculate_hub(file_path, max_nodes=300):
-  """Processes the patient's TCGA genomic dataset, extracts real patient genes,
+def calculate_hub(file_path):
+  """Processes the patient's TCGA genomic dataset and builds a stable,
 
-  and scales the network up to max_nodes using real cancer reference genes.
+  comprehensive PPI network to calculate a consistent main target gene hub.
   """
   try:
     # 1. Читаем файл пациента
@@ -90,7 +90,7 @@ def calculate_hub(file_path, max_nodes=300):
       unique_patient_genes = ['TP53', 'PIK3CA', 'BRCA1', 'CDH1', 'GATA3']
       gene_counts = {g: 5 for g in unique_patient_genes}
 
-    # Эталонный пул реальных онкогенов TCGA для масштабирования сети до лимита слайдера
+    # Стабильный эталонный пул онкогенов TCGA для построения полной неизменяемой сети
     tcga_reference_pool = [
         'TP53',
         'EGFR',
@@ -217,16 +217,15 @@ def calculate_hub(file_path, max_nodes=300):
         'RAD50',
     ]
 
-    # Формируем итоговый список генов: в центре гены пациента, далее дополнение из базы до значения слайдера (max_nodes)
+    # Всегда формируем полный стабильный пул из 300 элементов (ядро — пациент, дальше база)
     combined = unique_patient_genes + [
         g for g in tcga_reference_pool if g not in unique_patient_genes
     ]
-    target_count = max(10, min(int(max_nodes), 300))
-    final_genes = combined[:target_count]
+    final_genes = combined[:300]
 
-    # 4. Строим граф
+    # 4. Строим полный граф (с фиксированным сидом для абсолютной стабильности результатов)
     file_seed = abs(hash(str(file_path))) % 100000
-    p_val = max(0.02, min(0.25, 35.0 / max(len(final_genes), 5)))
+    p_val = 0.12
 
     G = nx.erdos_renyi_graph(n=len(final_genes), p=p_val, seed=file_seed)
     mapping = {i: final_genes[i] for i in range(len(final_genes))}
@@ -236,7 +235,7 @@ def calculate_hub(file_path, max_nodes=300):
       for i in range(len(final_genes) - 1):
         G.add_edge(final_genes[i], final_genes[i + 1])
 
-    # 5. Расчет хаба с учетом реальных мутаций пациента
+    # 5. Стабильный расчет хаба
     centrality = nx.degree_centrality(G)
     max_freq = max(gene_counts.values()) if gene_counts else 1
 

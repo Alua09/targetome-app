@@ -178,9 +178,7 @@ if 'analysis_result' not in st.session_state:
 if run_btn and selected_file_path:
   with st.spinner('AI is analyzing patient mutations...'):
     # Передаем значение со слайдера max_nodes в движок
-    result, status = calculate_hub(
-        selected_file_path, max_nodes=max_nodes_slider
-    )
+    result, status = calculate_hub(selected_file_path)
     st.session_state.analysis_result = result
 
 # 2. TOP HEADER
