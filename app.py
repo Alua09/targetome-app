@@ -177,7 +177,6 @@ if 'analysis_result' not in st.session_state:
 
 if run_btn and selected_file_path:
   with st.spinner('AI is analyzing patient mutations...'):
-    # Передаем значение со слайдера max_nodes в движок
     result, status = calculate_hub(selected_file_path)
     st.session_state.analysis_result = result
 
@@ -205,26 +204,7 @@ if st.session_state.analysis_result is not None:
   df_full = result.get('dataframe')
 
   total_mutations = len(df_full) if df_full is not None else 0
-  unique_genes_count = result.get("unique_genes_count", 0)
-    clean_cols = [
-        str(c).strip().lstrip('\ufeff').lower() for c in df_full.columns
-    ]
-    found_col = None
-    for target in [
-        'hugo_symbol',
-        'gene',
-        'symbol',
-        'gene_symbol',
-        'gene_name',
-        'hugosymbol',
-    ]:
-      if target in clean_cols:
-        found_col = df_full.columns[clean_cols.index(target)]
-        break
-    if found_col is not None:
-      unique_genes_count = df_full[found_col].dropna().nunique()
-    else:
-      unique_genes_count = df_full.iloc[:, 0].dropna().nunique()
+  unique_genes_count = result.get('unique_genes_count', 0)
 
   # Dynamic Mutation Types calculation per patient file
   var_counts = {}
