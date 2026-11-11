@@ -363,7 +363,7 @@ if st.session_state.analysis_result is not None:
             hub_x, hub_y, hub_z, hub_text, hub_size, hub_labels = [], [], [], [], [], []
 
             sorted_nodes_by_cent = sorted(G_sub.nodes(), key=lambda n: centrality.get(n, 0), reverse=True)
-            top_labeled_nodes = set(sorted_nodes_by_cent[:10])
+            top_labeled_nodes = set(sorted_nodes_by_cent[:15])
 
             for node in G_sub.nodes():
                 if node in pos_3d:
