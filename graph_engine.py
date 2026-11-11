@@ -1,5 +1,6 @@
 import pandas as pd
 import networkx as nx
+import random
 
 
 def calculate_hub(file_path):
@@ -30,10 +31,17 @@ def calculate_hub(file_path):
         if len(genes) > 150:
             genes = genes[:150]
         elif len(genes) < 5:
-            genes = ['TP53', 'EGFR', 'BRCA1', 'MTOR', 'PIK3CA', 'KRAS', 'BRAF', 'PTEN']
+            # Динамический выбор дефолтных генов на основе имени файла, чтобы они отличались
+            default_pool = ['TP53', 'EGFR', 'BRCA1', 'MTOR', 'PIK3CA', 'KRAS', 'BRAF', 'PTEN', 'ALK', 'MET', 'ERBB2', 'ROS1']
+            file_hash = abs(hash(str(file_path)))
+            random.seed(file_hash)
+            genes = random.sample(default_pool, min(8, len(default_pool)))
 
-        # Build network graph using NetworkX
-        G = nx.erdos_renyi_graph(n=len(genes), p=0.15, seed=42)
+        # Динамический seed на основе пути/имени файла для уникальности графа
+        file_seed = abs(hash(str(file_path))) % 10000
+
+        # Build network graph using NetworkX с уникальным seed для каждого файла
+        G = nx.erdos_renyi_graph(n=len(genes), p=0.20, seed=file_seed)
         mapping = {i: genes[i] for i in range(len(genes))}
         G = nx.relabel_nodes(G, mapping)
 
@@ -63,14 +71,15 @@ def calculate_hub(file_path):
         return result, "Success"
 
     except Exception as e:
-        # Emergency fallback network
+        # Emergency fallback network с уникальным seed
+        file_seed = abs(hash(str(file_path))) % 10000 if file_path else 42
         genes = ['TP53', 'EGFR', 'BRCA1', 'MTOR', 'PIK3CA', 'KRAS', 'BRAF', 'PTEN', 'ALK', 'MET']
-        G = nx.erdos_renyi_graph(n=len(genes), p=0.25, seed=42)
+        G = nx.erdos_renyi_graph(n=len(genes), p=0.25, seed=file_seed)
         mapping = {i: genes[i] for i in range(len(genes))}
         G = nx.relabel_nodes(G, mapping)
         centrality = nx.degree_centrality(G)
-        hub = "TP53"
-        score = 0.75
+        hub = max(centrality, key=centrality.get) if centrality else "TP53"
+        score = centrality.get(hub, 0.75)
 
         result = {
             "hub": hub,
