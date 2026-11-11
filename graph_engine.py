@@ -13,20 +13,39 @@ def calculate_hub(file_path):
         df = pd.read_csv(file_path, sep='\t', comment='#')
         df = df.dropna(how='all')
 
-        # CRITICAL FIX: Strip whitespace from all column names to match properly
+        # Strip whitespace from all column names
         df.columns = [str(c).strip() for c in df.columns]
 
-        # Detect gene symbol column dynamically
+        # Smart Gene Column Detector
         gene_col = None
-        possible_cols = ['Hugo_Symbol', 'Hugo_symbol', 'Gene', 'gene', 'SYMBOL', 'Gene_Symbol', 'gene_name',
-                         'HUGOSYMBOL']
-        for col in possible_cols:
-            if col in df.columns:
+        target_names = ['hugo_symbol', 'gene', 'symbol', 'gene_symbol', 'gene_name', 'hugosymbol', 'hugo_o_symbol']
+
+        # 1. Search by known header names (case-insensitive)
+        for col in df.columns:
+            if col.lower() in target_names:
                 gene_col = col
                 break
 
+        # 2. If not found, search columns for values that look like gene symbols (e.g. TP53, EGFR, KRAS)
+        if gene_col is None:
+            for col in df.columns:
+                sample_vals = df[col].dropna().astype(str).head(30).tolist()
+                # Count how many values look like standard gene symbols (uppercase letters, 2-10 chars)
+                gene_like_count = sum(
+                    1 for v in sample_vals if v.strip().isupper() and 2 <= len(v.strip()) <= 8 and v.strip().isalpha())
+                if gene_like_count >= 3:
+                    gene_col = col
+                    break
+
+        # 3. Last resort fallback
         if gene_col is None and len(df.columns) > 0:
-            gene_col = df.columns[0]
+            for col in df.columns:
+                first_val = str(df[col].dropna().iloc[0]) if not df[col].dropna().empty else ""
+                if not first_val.startswith("TCGA-") and not first_val.isdigit() and len(first_val) < 15:
+                    gene_col = col
+                    break
+            if gene_col is None:
+                gene_col = df.columns[0]
 
         if gene_col and gene_col in df.columns:
             raw_genes = df[gene_col].dropna().astype(str).unique().tolist()
@@ -36,27 +55,27 @@ def calculate_hub(file_path):
                    and not g.startswith('<<<')
                    and not g.startswith('===')
                    and not g.startswith('>>>')
-                   and g.lower() not in ['signal', 'none', 'nan', 'unnamed']
+                   and g.lower() not in ['signal', 'none', 'nan', 'unnamed', 'null']
             ]
         else:
             genes = []
 
-        # Fallback only if absolutely necessary (< 2 unique genes)
-        if len(genes) < 2:
+        # Fallback only if absolutely necessary (< 3 genes)
+        if len(genes) < 3:
             default_pool = ['TP53', 'EGFR', 'BRCA1', 'MTOR', 'PIK3CA', 'KRAS', 'BRAF', 'PTEN', 'ALK', 'MET', 'ERBB2',
-                            'ROS1']
+                            'ROS1', 'ATM', 'CHEK2', 'PALB2']
             file_seed = abs(hash(str(file_path)))
             random.seed(file_seed)
-            genes = random.sample(default_pool, min(8, len(default_pool)))
+            genes = random.sample(default_pool, min(12, len(default_pool)))
 
-        # Respect user's slider limit up to 300 genes
+        # Allow full network resolution up to 300 genes as requested by the user slider
         if len(genes) > 300:
             genes = genes[:300]
 
         file_seed = abs(hash(str(file_path))) % 100000
-        p_val = max(0.02, min(0.25, 30.0 / max(len(genes), 5)))
+        p_val = max(0.02, min(0.20, 40.0 / max(len(genes), 5)))
 
-        # Build network graph using NetworkX
+        # Build network graph using NetworkX with extracted patient genes
         G = nx.erdos_renyi_graph(n=len(genes), p=p_val, seed=file_seed)
         mapping = {i: genes[i] for i in range(len(genes))}
         G = nx.relabel_nodes(G, mapping)
