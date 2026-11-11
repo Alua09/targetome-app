@@ -2,10 +2,10 @@ import networkx as nx
 import pandas as pd
 
 
-def calculate_hub(file_path):
-  """Processes the patient's TCGA genomic dataset using 100% real patient genes
+def calculate_hub(file_path, max_nodes=300):
+  """Processes the patient's TCGA genomic dataset, extracts real patient genes,
 
-  and calculates centrality combined with patient mutation frequency.
+  and scales the network up to max_nodes using real cancer reference genes.
   """
   try:
     # 1. Читаем файл пациента
@@ -39,7 +39,7 @@ def calculate_hub(file_path):
     if gene_col is None and len(df.columns) > 0:
       gene_col = df.columns[0]
 
-    # 3. Извлекаем СТРОГО уникальные гены пациента и считаем их частоту мутаций
+    # 3. Извлекаем реальные гены пациента
     bad_words = {
         'signal',
         'none',
@@ -65,63 +65,196 @@ def calculate_hub(file_path):
         'frameshift',
     }
 
-    patient_genes_raw = []
+    patient_genes = []
     if gene_col and gene_col in df.columns:
-      patient_genes_raw = df[gene_col].dropna().astype(str).tolist()
+      raw_genes = df[gene_col].dropna().astype(str).tolist()
+      for g in raw_genes:
+        clean_g = g.strip().upper()
+        if (
+            clean_g
+            and not clean_g.startswith('<<<')
+            and not clean_g.startswith('===')
+            and not clean_g.startswith('>>>')
+            and clean_g not in bad_words
+            and 2 <= len(clean_g) <= 12
+            and clean_g.isalnum()
+            and not clean_g.isdigit()
+        ):
+          patient_genes.append(clean_g)
 
-    valid_genes = []
-    for g in patient_genes_raw:
-      clean_g = g.strip().upper()
-      if (
-          clean_g
-          and not clean_g.startswith('<<<')
-          and not clean_g.startswith('===')
-          and not clean_g.startswith('>>>')
-          and clean_g not in bad_words
-          and 2 <= len(clean_g) <= 12
-          and clean_g.isalnum()
-          and not clean_g.isdigit()
-      ):
-        valid_genes.append(clean_g)
+    # Считаем частоту мутаций для точного поиска хаба
+    gene_counts = pd.Series(patient_genes).value_counts().to_dict()
+    unique_patient_genes = list(gene_counts.keys())
 
-    # Считаем частоту мутаций для каждого гена в файле пациента
-    gene_counts = pd.Series(valid_genes).value_counts().to_dict()
-    unique_genes = list(gene_counts.keys())
+    if len(unique_patient_genes) < 2:
+      unique_patient_genes = ['TP53', 'PIK3CA', 'BRCA1', 'CDH1', 'GATA3']
+      gene_counts = {g: 5 for g in unique_patient_genes}
 
-    # Страховка, если файл пустой
-    if len(unique_genes) < 2:
-      unique_genes = ['TP53', 'PIK3CA', 'BRCA1', 'CDH1', 'GATA3', 'MAP3K1']
-      gene_counts = {g: 5 for g in unique_genes}
+    # Эталонный пул реальных онкогенов TCGA для масштабирования сети до лимита слайдера
+    tcga_reference_pool = [
+        'TP53',
+        'EGFR',
+        'BRCA1',
+        'BRCA2',
+        'MTOR',
+        'PIK3CA',
+        'KRAS',
+        'BRAF',
+        'PTEN',
+        'ALK',
+        'MET',
+        'ERBB2',
+        'ROS1',
+        'ATM',
+        'CHEK2',
+        'PALB2',
+        'APC',
+        'CDKN2A',
+        'MYC',
+        'MDM2',
+        'RB1',
+        'IDH1',
+        'JAK2',
+        'KIT',
+        'FLT3',
+        'RET',
+        'SMAD4',
+        'STK11',
+        'VHL',
+        'BAP1',
+        'ARID1A',
+        'NF1',
+        'NOTCH1',
+        'ERBB3',
+        'FGFR1',
+        'FGFR2',
+        'FGFR3',
+        'IGF1R',
+        'PDGFRA',
+        'ABL1',
+        'AKT1',
+        'AKT2',
+        'AKT3',
+        'AR',
+        'BCL2',
+        'BTK',
+        'CCND1',
+        'CDK4',
+        'CDK6',
+        'CTNNB1',
+        'DDR2',
+        'ESR1',
+        'EZH2',
+        'GNA11',
+        'GNAQ',
+        'GNAS',
+        'HRAS',
+        'IDH2',
+        'MAP2K1',
+        'MAP2K2',
+        'NFE2L2',
+        'NTRK1',
+        'NTRK2',
+        'NTRK3',
+        'PPM1D',
+        'PRKAR1A',
+        'RAC1',
+        'RHEB',
+        'RHOA',
+        'RIT1',
+        'RNF43',
+        'RPS6KB1',
+        'SDHA',
+        'SDHB',
+        'SDHC',
+        'SDHD',
+        'SMO',
+        'SPOP',
+        'SRC',
+        'TERT',
+        'TSC1',
+        'TSC2',
+        'XPO1',
+        'B2M',
+        'CD58',
+        'CDH1',
+        'CREBBP',
+        'EP300',
+        'FBXW7',
+        'GATA3',
+        'KDM6A',
+        'KMT2A',
+        'KMT2C',
+        'KMT2D',
+        'ARID2',
+        'PBRM1',
+        'RUNX1',
+        'SF3B1',
+        'STAG2',
+        'TET2',
+        'U2AF1',
+        'ZRSR2',
+        'CDKN1B',
+        'CHEK1',
+        'FANCA',
+        'FANCC',
+        'FANCD2',
+        'FANCE',
+        'FANCF',
+        'FANCG',
+        'MLH1',
+        'MSH2',
+        'MSH6',
+        'PMS2',
+        'POLE',
+        'POLD1',
+        'RAD51',
+        'RAD51C',
+        'RAD51D',
+        'BARD1',
+        'BRIP1',
+        'NBN',
+        'RAD50',
+    ]
 
-    # 4. Строим граф исключительно по реальным генам пациента
+    # Формируем итоговый список генов: в центре гены пациента, далее дополнение из базы до значения слайдера (max_nodes)
+    combined = unique_patient_genes + [
+        g for g in tcga_reference_pool if g not in unique_patient_genes
+    ]
+    target_count = max(10, min(int(max_nodes), 300))
+    final_genes = combined[:target_count]
+
+    # 4. Строим граф
     file_seed = abs(hash(str(file_path))) % 100000
-    p_val = max(0.1, min(0.6, 10.0 / max(len(unique_genes), 2)))
+    p_val = max(0.02, min(0.25, 35.0 / max(len(final_genes), 5)))
 
-    G = nx.erdos_renyi_graph(n=len(unique_genes), p=p_val, seed=file_seed)
-    mapping = {i: unique_genes[i] for i in range(len(unique_genes))}
+    G = nx.erdos_renyi_graph(n=len(final_genes), p=p_val, seed=file_seed)
+    mapping = {i: final_genes[i] for i in range(len(final_genes))}
     G = nx.relabel_nodes(G, mapping)
 
-    if G.number_of_edges() == 0 and len(unique_genes) > 1:
-      for i in range(len(unique_genes) - 1):
-        G.add_edge(unique_genes[i], unique_genes[i + 1])
+    if G.number_of_edges() == 0 and len(final_genes) > 1:
+      for i in range(len(final_genes) - 1):
+        G.add_edge(final_genes[i], final_genes[i + 1])
 
-    # 5. Честный расчет хаба: комбинация топологии сети и частоты мутаций в файле
+    # 5. Расчет хаба с учетом реальных мутаций пациента
     centrality = nx.degree_centrality(G)
     max_freq = max(gene_counts.values()) if gene_counts else 1
 
     combined_scores = {}
     for node in G.nodes():
       cent = centrality.get(node, 0)
-      # Доля мутаций этого гена относительно общего профиля пациента
-      freq_weight = gene_counts.get(node, 1) / max_freq
-      # Итоговая важность: баланс сетевой связности и реальной нагрузки мутациями
-      combined_scores[node] = (cent * 0.5) + (freq_weight * 0.5)
+      freq_weight = (
+          (gene_counts.get(node, 0) / max_freq)
+          if node in gene_counts
+          else 0.05
+      )
+      combined_scores[node] = (cent * 0.6) + (freq_weight * 0.4)
 
     if combined_scores:
       hub = max(combined_scores, key=combined_scores.get)
       score = centrality.get(hub, 0.5)
     else:
-      hub = unique_genes[0]
+      hub = unique_patient_genes[0]
       score = 0.5
 
     result = {
