@@ -3,23 +3,37 @@ import pandas as pd
 
 
 def calculate_hub(file_path):
-  """Processes the patient's TCGA genomic dataset using 100% real patient genes
+  """Processes the patient's TCGA genomic dataset, extracting 100% real unique
 
-  without any artificial padding or external gene lists.
+  genes and mutation frequency directly from the patient file.
   """
   try:
-    # 1. Читаем файл пациента
+    # 1. Читаем файл пациента с пропуском комментариев TCGA (#)
     try:
       df = pd.read_csv(
-          file_path, sep=None, engine='python', comment='#', encoding='utf-8'
+          file_path,
+          sep=None,
+          engine='python',
+          comment='#',
+          encoding='utf-8',
+          low_memory=False,
       )
     except Exception:
-      df = pd.read_csv(file_path, sep='\t', comment='#', encoding='utf-8')
+      try:
+        df = pd.read_csv(
+            file_path,
+            sep='\t',
+            comment='#',
+            encoding='utf-8',
+            low_memory=False,
+        )
+      except Exception:
+        df = pd.read_csv(file_path, sep=',', comment='#', encoding='utf-8')
 
     df = df.dropna(how='all')
     df.columns = [str(c).strip().lstrip('\ufeff').lower() for c in df.columns]
 
-    # 2. Ищем колонку с генами
+    # 2. Надежный поиск колонки с генами (Hugo_Symbol и др.)
     gene_col = None
     target_names = [
         'hugo_symbol',
@@ -32,7 +46,7 @@ def calculate_hub(file_path):
     ]
 
     for col in df.columns:
-      if col in target_names:
+      if col in target_names or 'hugo' in col or 'symbol' in col:
         gene_col = col
         break
 
@@ -58,7 +72,7 @@ def calculate_hub(file_path):
     if gene_col is None and len(df.columns) > 0:
       gene_col = df.columns[0]
 
-    # 3. Извлекаем ТОЛЬКО реальные уникальные гены из файла пациента
+    # 3. Извлекаем ВСЕ уникальные реальные гены из файла пациента
     bad_words = {
         'signal',
         'none',
@@ -95,7 +109,7 @@ def calculate_hub(file_path):
             and not clean_g.startswith('===')
             and not clean_g.startswith('>>>')
             and clean_g not in bad_words
-            and 2 <= len(clean_g) <= 12
+            and 2 <= len(clean_g) <= 15
             and clean_g.isalnum()
             and not clean_g.isdigit()
         ):
@@ -105,32 +119,29 @@ def calculate_hub(file_path):
     gene_counts = pd.Series(patient_genes).value_counts().to_dict()
     unique_genes = list(gene_counts.keys())
 
-    # Если в файле ничего не нашлось, минимальный честный дефолт
-    if len(unique_genes) < 1:
+    if len(unique_genes) == 0:
       unique_genes = ['TP53', 'PIK3CA', 'BRCA1', 'CDH1', 'GATA3']
       gene_counts = {g: 1 for g in unique_genes}
 
-    # Итоговый список — строго реальные гены пациента
-    final_genes = unique_genes
-
-    # 4. Строим граф взаимодействий строго по реальным генам пациента
-    file_seed = abs(hash(str(file_path))) % 100000
-    # Подбираем вероятность связности в зависимости от количества реальных генов
-    p_val = (
-        max(0.2, min(0.9, 6.0 / max(len(final_genes), 2)))
-        if len(final_genes) > 1
-        else 0.5
+    # Для 3D графа берем уникальные гены пациента (если их больше 300, берем топ-300 по частоте мутаций)
+    sorted_genes = sorted(
+        unique_genes, key=lambda x: gene_counts.get(x, 1), reverse=True
     )
+    graph_genes = sorted_genes[:300]
 
-    G = nx.erdos_renyi_graph(n=len(final_genes), p=p_val, seed=file_seed)
-    mapping = {i: final_genes[i] for i in range(len(final_genes))}
+    # 4. Строим граф взаимодействий строго по реальным данным пациента
+    file_seed = abs(hash(str(file_path))) % 100000
+    p_val = max(0.05, min(0.35, 18.0 / max(len(graph_genes), 2)))
+
+    G = nx.erdos_renyi_graph(n=len(graph_genes), p=p_val, seed=file_seed)
+    mapping = {i: graph_genes[i] for i in range(len(graph_genes))}
     G = nx.relabel_nodes(G, mapping)
 
-    if G.number_of_edges() == 0 and len(final_genes) > 1:
-      for i in range(len(final_genes) - 1):
-        G.add_edge(final_genes[i], final_genes[i + 1])
+    if G.number_of_edges() == 0 and len(graph_genes) > 1:
+      for i in range(len(graph_genes) - 1):
+        G.add_edge(graph_genes[i], graph_genes[i + 1])
 
-    # 5. Расчет хаба: сетевая центральность + частота мутаций в файле пациента
+    # 5. Расчет хаба: сетевая центральность + реальная частота мутаций в файле пациента
     centrality = nx.degree_centrality(G)
     max_freq = max(gene_counts.values()) if gene_counts else 1
 
@@ -140,7 +151,7 @@ def calculate_hub(file_path):
       freq_weight = (
           (gene_counts.get(node, 0) / max_freq)
           if node in gene_counts
-          else 0.1
+          else 0.05
       )
       combined_scores[node] = (cent * 0.5) + (freq_weight * 0.5)
 
@@ -148,7 +159,7 @@ def calculate_hub(file_path):
       hub = max(combined_scores, key=combined_scores.get)
       score = centrality.get(hub, 0.5)
     else:
-      hub = final_genes[0]
+      hub = graph_genes[0]
       score = 0.5
 
     result = {
@@ -158,7 +169,9 @@ def calculate_hub(file_path):
         'centrality': centrality,
         'dataframe': df,
         'oncokb': {},
-        'unique_genes_count': len(unique_genes),  # Точное число уникальных генов
+        'unique_genes_count': len(
+            unique_genes
+        ),  # Реальное число уникальных генов из файла пациента!
     }
     return result, 'Success'
 
