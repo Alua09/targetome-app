@@ -162,7 +162,7 @@ st.sidebar.markdown(
     '🙏 <b>Data Acknowledgement:</b><br>'
     'Genomic patient profiles and TCGA cohorts courtesy of '
     '<a href="https://www.cbioportal.org/study/summary?id=brca_tcga_pan_can_atlas_2018" target="_blank">cBioPortal for Cancer Genomics</a> '
-    '(Breast Invasive Carcinoma, PanCancer Atlas[cite: 8]).'
+    '(Breast Invasive Carcinoma, PanCancer Atlas).'
     '</div>',
     unsafe_allow_html=True,
 )
