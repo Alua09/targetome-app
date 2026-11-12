@@ -3,9 +3,9 @@ import pandas as pd
 
 
 def calculate_hub(file_path, include_cna=True):
-  """Processes patient genomic data precisely from the 'Gene' column
+  """Processes patient genomic data from the 'Gene' column, keeping all
 
-  of TCGA cBioPortal TSV files, respecting the include_cna filter option.
+  mutation records to reflect full genomic telemetry.
   """
   try:
     # 1. Чтение файла TCGA / cBioPortal TSV
@@ -40,7 +40,6 @@ def calculate_hub(file_path, include_cna=True):
           cna_col = c
           break
       if cna_col:
-        # Исключаем строки, содержащие признаки CNA
         cna_terms = [
             'amp',
             'del',
@@ -55,7 +54,7 @@ def calculate_hub(file_path, include_cna=True):
         )
         filtered_df = df[mask]
         if filtered_df.empty:
-          filtered_df = df  # страховка, если отфильтровалось всё
+          filtered_df = df
 
     forbidden_tokens = {
         'signal',
@@ -102,6 +101,7 @@ def calculate_hub(file_path, include_cna=True):
     if not patient_genes:
       patient_genes = ['TP53', 'BRCA1', 'LYN', 'ATP2B3', 'CHN1', 'EGFR', 'KRAS']
 
+    # Считаем частоту упоминаний каждого гена (теперь учитываются все вхождения)
     gene_counts = pd.Series(patient_genes).value_counts().to_dict()
     unique_genes = list(gene_counts.keys())
     graph_genes = unique_genes[:300]
