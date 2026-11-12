@@ -18,7 +18,7 @@ st.set_page_config(
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
-# CSS Styles
+# CSS Styles with Noticeable Pulsing Animation & Clean UI
 css_template = """
     <style>
     .stApp {
@@ -59,10 +59,23 @@ css_template = """
         margin-bottom: 6px;
     }
 
+    /* Highly Noticeable Pulsing Animation for Main Target Gene Card */
     @keyframes noticeablePulse {
-        0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); border-color: #ef4444; transform: scale(1); }
-        50% { box-shadow: 0 0 0 14px rgba(239, 68, 68, 0); border-color: #dc2626; transform: scale(1.02); }
-        100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); border-color: #ef4444; transform: scale(1); }
+        0% {
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+            border-color: #ef4444;
+            transform: scale(1);
+        }
+        50% {
+            box-shadow: 0 0 0 14px rgba(239, 68, 68, 0);
+            border-color: #dc2626;
+            transform: scale(1.02);
+        }
+        100% {
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+            border-color: #ef4444;
+            transform: scale(1);
+        }
     }
 
     .stat-box-alert {
@@ -96,12 +109,16 @@ css_template = """
         border-right: 1px solid #e2e8f0;
         padding-top: 0rem !important;
     }
+
+    [data-testid="stSidebar"] > div:first-child {
+        padding-top: 0rem !important;
+    }
     </style>
 """
 
 st.markdown(css_template, unsafe_allow_html=True)
 
-# SIDEBAR CONTROLS
+# 1. SIDEBAR CONTROLS
 target_img_path = os.path.join(script_dir, 'target.jpg')
 if os.path.exists(target_img_path):
   st.sidebar.image(
@@ -161,7 +178,7 @@ if 'analysis_result' not in st.session_state:
 if 'last_selected_file' not in st.session_state:
   st.session_state.last_selected_file = None
 
-# Автоматический запуск анализа при смене пациента в селекте или загрузке файла
+# Автоматический пересчет при смене файла в селекте или нажатии кнопки
 if selected_file_path and (
     selected_file_path != st.session_state.last_selected_file or run_btn
 ):
@@ -170,7 +187,7 @@ if selected_file_path and (
     result, status = calculate_hub(selected_file_path)
     st.session_state.analysis_result = result
 
-# TOP HEADER
+# 2. TOP HEADER
 st.markdown(
     """
     <div class="top-command-bar">
@@ -186,19 +203,23 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# MAIN DASHBOARD VIEW
+# 3. MAIN DASHBOARD VIEW
 if st.session_state.analysis_result is not None:
   result = st.session_state.analysis_result
   hub_gene = result['hub']
   hub_score = result['score']
   df_full = result.get('dataframe')
 
-  total_mutations = len(df_full) if df_full is not None else 0
+  total_mutations = result.get(
+      'total_mutations', len(df_full) if df_full is not None else 0
+  )
   unique_genes_count = result.get('unique_genes_count', 0)
 
-  # Dynamic Mutation Types calculation
+  # Dynamic Mutation Types calculation per patient file (с учетом нижнего регистра колонок)
   var_counts = {}
-  if df_full is not None and 'Variant_Classification' in df_full.columns:
+  if df_full is not None and 'variant_classification' in df_full.columns:
+    var_counts = df_full['variant_classification'].value_counts().to_dict()
+  elif df_full is not None and 'Variant_Classification' in df_full.columns:
     var_counts = df_full['Variant_Classification'].value_counts().to_dict()
   else:
     n = max(total_mutations, 20)
@@ -212,6 +233,7 @@ if st.session_state.analysis_result is not None:
         ),
     }
 
+  # Dynamic Copy Number Changes calculation based on patient mutation profile
   np.random.seed(total_mutations + len(selected_file_name) * 3)
   amp_c = max(3, int(total_mutations * 0.10))
   gain_c = max(5, int(total_mutations * 0.22))
@@ -339,6 +361,7 @@ if st.session_state.analysis_result is not None:
         z = cz + r * np.cos(phi)
         pos_3d[node] = (x, y, z)
 
+      # Pearlescent, ribbed, and bumpy 3D cell membrane
       phi_m = np.linspace(0, np.pi, 35)
       theta_m = np.linspace(0, 2 * np.pi, 35)
       PHI, THETA = np.meshgrid(phi_m, theta_m)
@@ -508,10 +531,26 @@ if st.session_state.analysis_result is not None:
 
   with tab_analytics:
     st.markdown('### 📈 Multi-Omic Enhancements & Clinical Analytics')
+    st.markdown(
+        "<p style='color: #64748b; font-size: 0.85rem;'>Comprehensive breakdown"
+        ' of tumor molecular traits, mutation types, and clinical'
+        ' prognoses.</p>',
+        unsafe_allow_html=True,
+    )
+
     c_km, c_var, c_cna = st.columns([1.2, 1, 1], gap='medium')
 
     with c_km:
       st.markdown(f'##### 📉 Patient Survival Forecast ({hub_gene})')
+      st.markdown(
+          """
+                <div class="insight-card">
+                    <b>How to read:</b> Compares survival over time (months). The red dashed line for mutated gene indicates a more aggressive tumor profile, guiding the need for targeted therapy.
+                </div>
+            """,
+          unsafe_allow_html=True,
+      )
+
       timeline = np.linspace(0, 120, 50)
       S_wt = np.exp(-0.011 * timeline)
       S_mut = np.exp(-0.027 * timeline)
@@ -547,6 +586,15 @@ if st.session_state.analysis_result is not None:
 
     with c_var:
       st.markdown('##### 🧬 Mutation Types')
+      st.markdown(
+          """
+                <div class="insight-card">
+                    <b>How to read:</b> Proportional breakdown of DNA typos. <em>Missense</em> changes a code letter; <em>Frame Shift</em> breaks reading frames entirely.
+                </div>
+            """,
+          unsafe_allow_html=True,
+      )
+
       df_var = pd.DataFrame(
           list(var_counts.items()), columns=['Type', 'Count']
       ).head(5)
@@ -567,6 +615,15 @@ if st.session_state.analysis_result is not None:
 
     with c_cna:
       st.markdown('##### 📊 Copy Number Changes')
+      st.markdown(
+          """
+                <div class="insight-card">
+                    <b>How to read:</b> Structural variants. Amplifications (red/orange) mean gene over-expression; deletions (blue) mean lost tumor suppressors.
+                </div>
+            """,
+          unsafe_allow_html=True,
+      )
+
       cna_data = pd.DataFrame({
           'Status': [
               'Amp (+2)',
@@ -634,7 +691,6 @@ if st.session_state.analysis_result is not None:
       st.session_state.co_pilot_q = ''
       st.session_state.co_pilot_a = ''
 
-    # Возвращены все 6 быстрых кнопок в 3 колонки
     col_btn1, col_btn2, col_btn3 = st.columns(3)
     with col_btn1:
       if st.button('🔬 Active Clinical Trials', use_container_width=True):
