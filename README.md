@@ -1,59 +1,30 @@
-<<<<<<< HEAD
-\# 🎯 Targetome | AI Precision Oncology Platform
+# 🎯 Targetome | AI Precision Oncology Platform
 
+**Targetome** is an advanced AI-powered precision oncology platform designed to map patient genomic data into 3D cellular networks, locate the primary target gene driving tumor growth, and provide transparent, data-driven clinical insights.
 
+---
 
-Targetome is an AI-powered precision oncology platform designed to map patient genomic data into 3D cellular networks, locate the primary target gene driving tumor growth, and provide interactive clinical insights.
+## 🚀 Key Features
 
+* **🌐 3D Tumor Cellular Model**: Interactive Plotly network visualization centered around the core hub gene, built dynamically from the patient's actual mutation profile with adjustable network resolution.
+* **📈 Multi-Omic & Survival Analytics**: Comprehensive clinical telemetry, Kaplan-Meier survival curve forecasts, mutation type distributions, and copy number variations (CNA).
+* **📋 Mutation Telemetry**: Transparent data tables displaying raw and processed patient genetic records directly from TCGA datasets.
+* **🤖 AI Clinical Co-Pilot**: Interactive Q&A interface featuring quick clinical query buttons and natural language processing to explain evidence tiers (OncoKB), targeted therapies, and biological mechanisms.
 
+---
 
-\## 🚀 Features
+## 🔬 Scientific & Analytical Integrity
 
-\* \*\*3D Tumor Cellular Model\*\*: Interactive Plotly network visualization centered around the core hub gene.
+Targetome is built on a **100% patient-driven architecture**:
+* **No Artificial Padding**: Networks and hub identifications rely strictly on unique patient genes and their mutation frequencies found in the uploaded `.tsv` dataset.
+* **Dynamic Resolution**: The network resolution slider filters visual graphs based on real patient-specific nodes.
+* **Real-Time Telemetry**: Automatic parsing of TCGA datasets ensures accurate, real-time node and mutation counting without cross-session caching issues.
 
-\* \*\*Multi-Omic \& Survival Analytics\*\*: Clinical telemetry, Kaplan-Meier survival curves, mutation types, and copy number variations (CNA).
+---
 
-\* \*\*AI Clinical Co-Pilot\*\*: Instant, plain-language Q\&A interface explaining evidence tiers (OncoKB), targeted therapies, and biological mechanisms.
+## 📦 Installation & Local Run
 
-
-
-\## 📦 Installation \& Local Run
-
-1\. Clone the repository:
-
-&#x20;  ```bash
-
-&#x20;  git clone \[https://github.com/your-username/targetome-app.git](https://github.com/your-username/targetome-app.git)
-
-&#x20;  cd targetome-app
-
-=======
-\# 🎯 Targetome | AI Precision Oncology Platform
-
-
-
-Targetome is an AI-powered precision oncology platform designed to map patient genomic data into 3D cellular networks, locate the primary target gene driving tumor growth, and provide interactive clinical insights.
-
-
-
-\## 🚀 Features
-
-\* \*\*3D Tumor Cellular Model\*\*: Interactive Plotly network visualization centered around the core hub gene.
-
-\* \*\*Multi-Omic \& Survival Analytics\*\*: Clinical telemetry, Kaplan-Meier survival curves, mutation types, and copy number variations (CNA).
-
-\* \*\*AI Clinical Co-Pilot\*\*: Instant, plain-language Q\&A interface explaining evidence tiers (OncoKB), targeted therapies, and biological mechanisms.
-
-
-
-\## 📦 Installation \& Local Run
-
-1\. Clone the repository:
-
-&#x20;  ```bash
-
-&#x20;  git clone \[https://github.com/your-username/targetome-app.git](https://github.com/your-username/targetome-app.git)
-
-&#x20;  cd targetome-app
-
->>>>>>> 211a9924810717809337c538e8d8077f618bc2fd
+1. Clone the repository:
+   ```bash
+   git clone [https://github.com/your-username/targetome-app.git](https://github.com/your-username/targetome-app.git)
+   cd targetome-app
