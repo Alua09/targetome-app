@@ -178,11 +178,13 @@ if 'analysis_result' not in st.session_state:
 if 'last_selected_file' not in st.session_state:
   st.session_state.last_selected_file = None
 
-# Автоматический пересчет при смене файла в селекте или нажатии кнопки
-if selected_file_path and (
-    selected_file_path != st.session_state.last_selected_file or run_btn
-):
+# Если выбрали другого пациента в списке — сбрасываем старый результат
+if selected_file_path != st.session_state.last_selected_file:
   st.session_state.last_selected_file = selected_file_path
+  st.session_state.analysis_result = None
+
+# Расчет запускается СТРОГО по нажатию кнопки Run AI Analysis
+if run_btn and selected_file_path:
   with st.spinner('AI is analyzing patient mutations...'):
     result, status = calculate_hub(selected_file_path)
     st.session_state.analysis_result = result
@@ -215,7 +217,7 @@ if st.session_state.analysis_result is not None:
   )
   unique_genes_count = result.get('unique_genes_count', 0)
 
-  # Dynamic Mutation Types calculation per patient file (с учетом нижнего регистра колонок)
+  # Dynamic Mutation Types calculation per patient file
   var_counts = {}
   if df_full is not None and 'variant_classification' in df_full.columns:
     var_counts = df_full['variant_classification'].value_counts().to_dict()
