@@ -191,7 +191,7 @@ st.markdown(
         </div>
         <div style="font-size: 0.78rem; color: #475569; margin-top: 2px;">
             <b>Simple explanation:</b> Maps patient genomic data into 3D cellular networks to locate the main target gene driving tumor growth.
-            <span style="color: #2563eb; font-weight: 600; margin-left: 10px;">📊 Data: TCGA PanCancer Atlas via <a href="https://www.cbioportal.org/study/summary?id=brca_tcga_pan_can_atlas_2018" target="_blank">cBioPortal</a>[cite: 8]</span>
+            <span style="color: #2563eb; font-weight: 600; margin-left: 10px;">📊 Data: TCGA PanCancer Atlas via <a href="https://www.cbioportal.org/study/summary?id=brca_tcga_pan_can_atlas_2018" target="_blank">cBioPortal</a></span>
         </div>
     </div>
 """,
