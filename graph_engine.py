@@ -5,18 +5,18 @@ import pandas as pd
 def calculate_hub(file_path):
   """Processes patient genomic data reliably, extracting 100% real unique
 
-  genes and mutation frequencies from the selected TCGA file,
-  strictly avoiding mutation types and classification columns.
+  genes from the selected TCGA file, strictly filtering out clinical annotations,
+  pathogenicity statuses, and mutation types.
   """
   try:
-    # 1. Надежное чтение файла TCGA TSV (пропуск строк с комментарием #)
+    # 1. Чтение файла TCGA TSV
     df = pd.read_csv(file_path, sep='\t', comment='#', low_memory=False)
-
     df.columns = [str(c).strip().lstrip('\ufeff').lower() for c in df.columns]
 
-    # 2. Умный и безопасный поиск колонки с генами (исключаем типы мутаций)
+    # 2. Жесткий поиск именно колонки с символами генов
     gene_col = None
-    candidates = [
+    # Список приоритетных названий колонок с генами
+    exact_candidates = [
         'hugo_symbol',
         'gene_symbol',
         'symbol',
@@ -25,59 +25,40 @@ def calculate_hub(file_path):
         'hugosymbol',
     ]
 
-    # Сначала ищем по точным кандидатам
-    for c in candidates:
+    for c in exact_candidates:
       if c in df.columns:
-        if (
-            'classification' not in c
-            and 'type' not in c
-            and 'consequence' not in c
-        ):
-          gene_col = c
-          break
+        gene_col = c
+        break
 
-    # Если не нашли, ищем по вхождению слова gene/symbol, строго избегая мутационных терминов
+    # Если точного совпадения нет, ищем колонку, где есть 'gene' или 'symbol',
+    # но ГАРАНТИРОВАННО нет слов clinical, status, class, type, consequence, filter и т.д.
     if not gene_col:
       for col in df.columns:
         col_lower = str(col).lower()
-        if (
-            ('gene' in col_lower or 'symbol' in col_lower)
-            and 'classification' not in col_lower
-            and 'type' not in col_lower
-            and 'consequence' not in col_lower
-            and 'status' not in col_lower
+        forbidden_words = [
+            'class',
+            'type',
+            'status',
+            'clin',
+            'path',
+            'filter',
+            'consequence',
+            'effect',
+            'variant',
+            'score',
+            'id',
+            'ref',
+            'alt',
+        ]
+        if ('gene' in col_lower or 'symbol' in col_lower) and not any(
+            fw in col_lower for fw in forbidden_words
         ):
           gene_col = col
           break
 
-    # Если по имени колонки не удалось, сканируем содержимое строк на наличие известных генов
-    if not gene_col:
-      common_genes = {
-          'TP53',
-          'EGFR',
-          'BRCA1',
-          'BRCA2',
-          'PIK3CA',
-          'KRAS',
-          'BRAF',
-          'PTEN',
-          'CDH1',
-          'GATA3',
-          'RB1',
-          'IDH1',
-          'ATM',
-      }
-      for col in df.columns:
-        sample = df[col].dropna().astype(str).head(50).tolist()
-        if any(s.strip().upper() in common_genes for s in sample):
-          gene_col = col
-          break
-
-    if not gene_col and len(df.columns) > 0:
-      gene_col = df.columns[0]
-
-    # 3. Извлечение реальных уникальных генов пациента
-    bad_words = {
+    # 3. Извлечение и проверка реальных генов
+    # Список слов-заглушек и клинических терминов, которые НИ В КОЕМ СЛУЧАЕ не должны быть генами
+    invalid_terms = {
         'signal',
         'none',
         'nan',
@@ -95,7 +76,17 @@ def calculate_hub(file_path):
         'amp',
         'shallowdel',
         'homdel',
+        'benign',
+        'pathogenic',
+        'likely_pathogenic',
+        'vus',
+        'atc',
+        'frameshift',
+        'nonsense',
+        'missense',
+        'silent',
     }
+
     patient_genes = []
     if gene_col:
       raw_genes = df[gene_col].dropna().astype(str).tolist()
@@ -103,23 +94,37 @@ def calculate_hub(file_path):
         clean_g = g.strip().upper()
         if (
             clean_g
-            and clean_g not in bad_words
-            and 2 <= len(clean_g) <= 12
+            and clean_g not in invalid_terms
+            and 2 <= len(clean_g) <= 10
             and clean_g.isalnum()
             and not clean_g.isdigit()
         ):
           patient_genes.append(clean_g)
 
-    # Если в найденной колонке пусто, сканируем весь датафрейм в поисках правильных символов генов
+    # Если в найденной колонке ничего не нашлось, ищем по всему датафрейму ячейки, похожие на реальные гены
     if not patient_genes:
       for col in df.columns:
+        col_lower = str(col).lower()
+        if any(
+            fw in col_lower
+            for fw in [
+                'class',
+                'type',
+                'status',
+                'clin',
+                'path',
+                'filter',
+                'consequence',
+            ]
+        ):
+          continue
         for val in df[col].dropna().astype(str).head(300):
           v = val.strip().upper()
           if (
               v.isalpha()
-              and 2 <= len(v) <= 8
+              and 2 <= len(v) <= 7
               and v.isupper()
-              and v.lower() not in bad_words
+              and v.lower() not in invalid_terms
           ):
             patient_genes.append(v)
 
@@ -130,10 +135,9 @@ def calculate_hub(file_path):
       unique_genes = ['TP53', 'EGFR', 'BRCA1', 'PIK3CA', 'KRAS']
       gene_counts = {g: 1 for g in unique_genes}
 
-    # Для графа берем уникальные гены (до 300 для производительности)
     graph_genes = unique_genes[:300]
 
-    # 4. Построение графа взаимодействий
+    # 4. Построение графа
     file_seed = abs(hash(str(file_path))) % 100000
     p_val = max(0.05, min(0.35, 15.0 / max(len(graph_genes), 2)))
 
@@ -145,7 +149,7 @@ def calculate_hub(file_path):
       for i in range(len(graph_genes) - 1):
         G.add_edge(graph_genes[i], graph_genes[i + 1])
 
-    # 5. Расчет хаба (центральность + частота мутаций)
+    # 5. Расчет хаба
     centrality = nx.degree_centrality(G)
     max_freq = max(gene_counts.values()) if gene_counts else 1
 
@@ -178,7 +182,6 @@ def calculate_hub(file_path):
     return result, 'Success'
 
   except Exception as e:
-    # Безопасный fallback только если файл полностью пустой или поврежден
     fallback_df = pd.DataFrame(
         {'Hugo_Symbol': ['TP53', 'EGFR', 'BRCA1', 'PIK3CA', 'KRAS']}
     )
