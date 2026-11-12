@@ -2,17 +2,17 @@ import networkx as nx
 import pandas as pd
 
 
-def calculate_hub(file_path):
+def calculate_hub(file_path, include_cna=True):
   """Processes patient genomic data precisely from the 'Gene' column
 
-  of TCGA cBioPortal TSV files, building a 3D network and calculating core hub genes.
+  of TCGA cBioPortal TSV files, respecting the include_cna filter option.
   """
   try:
     # 1. Чтение файла TCGA / cBioPortal TSV
     df = pd.read_csv(file_path, sep='\t', comment='#', low_memory=False)
     df.columns = [str(c).strip().lstrip('\ufeff').lower() for c in df.columns]
 
-    # 2. Точный поиск колонки с генами ('gene' или 'hugo_symbol')
+    # 2. Точный поиск колонки с генами
     gene_col = None
     if 'gene' in df.columns:
       gene_col = 'gene'
@@ -21,7 +21,6 @@ def calculate_hub(file_path):
     elif 'gene_symbol' in df.columns:
       gene_col = 'gene_symbol'
     else:
-      # Берем самую первую колонку, если она содержит текстовые названия
       for col in df.columns:
         if (
             'gene' in col
@@ -32,7 +31,32 @@ def calculate_hub(file_path):
           gene_col = col
           break
 
-    # Черный список мусора, кодонов и типов мутаций
+    # Фильтрация по CNA (если выключено, убираем строки с амплификациями/делециями)
+    filtered_df = df
+    if not include_cna:
+      cna_col = None
+      for c in df.columns:
+        if 'mutation_type' in c or 'variant_classification' in c or 'type' in c:
+          cna_col = c
+          break
+      if cna_col:
+        # Исключаем строки, содержащие признаки CNA
+        cna_terms = [
+            'amp',
+            'del',
+            'gain',
+            'shallow',
+            'homdel',
+            'amplification',
+            'deletion',
+        ]
+        mask = ~df[cna_col].astype(str).str.lower().apply(
+            lambda x: any(term in x for term in cna_terms)
+        )
+        filtered_df = df[mask]
+        if filtered_df.empty:
+          filtered_df = df  # страховка, если отфильтровалось всё
+
     forbidden_tokens = {
         'signal',
         'none',
@@ -62,10 +86,9 @@ def calculate_hub(file_path):
 
     patient_genes = []
     if gene_col:
-      raw_genes = df[gene_col].dropna().astype(str).tolist()
+      raw_genes = filtered_df[gene_col].dropna().astype(str).tolist()
       for g in raw_genes:
         clean_g = g.strip().upper()
-        # Строгая проверка: длина от 2 до 10 символов, только буквы/цифры, не входит в мусор
         if (
             clean_g
             and clean_g not in forbidden_tokens
@@ -76,7 +99,6 @@ def calculate_hub(file_path):
         ):
           patient_genes.append(clean_g)
 
-    # Если гены не нашлись, подставляем базовый профиль
     if not patient_genes:
       patient_genes = ['TP53', 'BRCA1', 'LYN', 'ATP2B3', 'CHN1', 'EGFR', 'KRAS']
 
@@ -122,9 +144,9 @@ def calculate_hub(file_path):
         'score': score,
         'graph': G,
         'centrality': centrality,
-        'dataframe': df,
+        'dataframe': filtered_df,
         'unique_genes_count': len(unique_genes),
-        'total_mutations': len(df),
+        'total_mutations': len(filtered_df),
     }
     return result, 'Success'
 
@@ -139,7 +161,7 @@ def calculate_hub(file_path):
     G = nx.relabel_nodes(G, mapping)
     result = {
         'hub': 'TP53',
-        'score': '0.7500',
+        'score': 0.75,
         'graph': G,
         'centrality': nx.degree_centrality(G),
         'dataframe': fallback_df,

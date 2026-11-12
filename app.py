@@ -177,9 +177,10 @@ if selected_file_path != st.session_state.last_selected_file:
   st.session_state.last_selected_file = selected_file_path
   st.session_state.analysis_result = None
 
+# Расчет запускается по кнопке с передачей состояния чекбокса include_cna
 if run_btn and selected_file_path:
   with st.spinner('AI is analyzing patient mutations...'):
-    result, status = calculate_hub(selected_file_path)
+    result, status = calculate_hub(selected_file_path, include_cna=include_cna)
     st.session_state.analysis_result = result
 
 # 2. TOP HEADER
