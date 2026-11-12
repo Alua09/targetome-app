@@ -172,6 +172,17 @@ run_btn = st.sidebar.button(
     '🚀 Run AI Analysis', type='primary', use_container_width=True
 )
 
+# Блок благодарности источнику данных (cBioPortal) в сайдбаре
+st.sidebar.markdown('---')
+st.sidebar.markdown(
+    '<div style="font-size: 0.75rem; color: #64748b; line-height: 1.4;">Data'
+    ' source & studies courtesy of <a'
+    ' href="https://www.cbioportal.org/study/summary?id=brca_tcga_pan_can_atlas_2018"'
+    ' target="_blank">cBioPortal for Cancer Genomics</a> (TCGA PanCancer'
+    ' Atlas).</div>',
+    unsafe_allow_html=True,
+)
+
 if 'analysis_result' not in st.session_state:
   st.session_state.analysis_result = None
 
