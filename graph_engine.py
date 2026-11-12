@@ -5,7 +5,8 @@ import pandas as pd
 def calculate_hub(file_path):
   """Processes patient genomic data reliably, extracting 100% real unique
 
-  genes and mutation frequencies from the selected TCGA file.
+  genes and mutation frequencies from the selected TCGA file,
+  strictly avoiding mutation types and classification columns.
   """
   try:
     # 1. Надежное чтение файла TCGA TSV (пропуск строк с комментарием #)
@@ -13,7 +14,7 @@ def calculate_hub(file_path):
 
     df.columns = [str(c).strip().lstrip('\ufeff').lower() for c in df.columns]
 
-    # 2. Интеллектуальный поиск колонки с генами
+    # 2. Умный и безопасный поиск колонки с генами (исключаем типы мутаций)
     gene_col = None
     candidates = [
         'hugo_symbol',
@@ -23,14 +24,52 @@ def calculate_hub(file_path):
         'gene_name',
         'hugosymbol',
     ]
+
+    # Сначала ищем по точным кандидатам
     for c in candidates:
       if c in df.columns:
-        gene_col = c
-        break
+        if (
+            'classification' not in c
+            and 'type' not in c
+            and 'consequence' not in c
+        ):
+          gene_col = c
+          break
 
+    # Если не нашли, ищем по вхождению слова gene/symbol, строго избегая мутационных терминов
     if not gene_col:
       for col in df.columns:
-        if 'gene' in col or 'symbol' in col:
+        col_lower = str(col).lower()
+        if (
+            ('gene' in col_lower or 'symbol' in col_lower)
+            and 'classification' not in col_lower
+            and 'type' not in col_lower
+            and 'consequence' not in col_lower
+            and 'status' not in col_lower
+        ):
+          gene_col = col
+          break
+
+    # Если по имени колонки не удалось, сканируем содержимое строк на наличие известных генов
+    if not gene_col:
+      common_genes = {
+          'TP53',
+          'EGFR',
+          'BRCA1',
+          'BRCA2',
+          'PIK3CA',
+          'KRAS',
+          'BRAF',
+          'PTEN',
+          'CDH1',
+          'GATA3',
+          'RB1',
+          'IDH1',
+          'ATM',
+      }
+      for col in df.columns:
+        sample = df[col].dropna().astype(str).head(50).tolist()
+        if any(s.strip().upper() in common_genes for s in sample):
           gene_col = col
           break
 
@@ -51,7 +90,11 @@ def calculate_hub(file_path):
         'ins',
         'sub',
         'na',
-        'null',
+        'diploid',
+        'gain',
+        'amp',
+        'shallowdel',
+        'homdel',
     }
     patient_genes = []
     if gene_col:
@@ -67,12 +110,17 @@ def calculate_hub(file_path):
         ):
           patient_genes.append(clean_g)
 
-    # Если в найденной колонке пусто, пробуем найти гены по всему датафрейму
+    # Если в найденной колонке пусто, сканируем весь датафрейм в поисках правильных символов генов
     if not patient_genes:
       for col in df.columns:
-        for val in df[col].dropna().astype(str).head(200):
+        for val in df[col].dropna().astype(str).head(300):
           v = val.strip().upper()
-          if v.isalpha() and 2 <= len(v) <= 10 and v.isupper():
+          if (
+              v.isalpha()
+              and 2 <= len(v) <= 8
+              and v.isupper()
+              and v.lower() not in bad_words
+          ):
             patient_genes.append(v)
 
     gene_counts = pd.Series(patient_genes).value_counts().to_dict()
@@ -124,8 +172,8 @@ def calculate_hub(file_path):
         'graph': G,
         'centrality': centrality,
         'dataframe': df,
-        'unique_genes_count': len(unique_genes),  # Честное число уникальных генов
-        'total_mutations': len(df),  # Реальное число строк (мутаций)
+        'unique_genes_count': len(unique_genes),
+        'total_mutations': len(df),
     }
     return result, 'Success'
 
