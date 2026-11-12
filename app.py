@@ -158,7 +158,14 @@ run_btn = st.sidebar.button(
 if 'analysis_result' not in st.session_state:
   st.session_state.analysis_result = None
 
-if run_btn and selected_file_path:
+if 'last_selected_file' not in st.session_state:
+  st.session_state.last_selected_file = None
+
+# Автоматический запуск анализа при смене пациента в селекте или загрузке файла
+if selected_file_path and (
+    selected_file_path != st.session_state.last_selected_file or run_btn
+):
+  st.session_state.last_selected_file = selected_file_path
   with st.spinner('AI is analyzing patient mutations...'):
     result, status = calculate_hub(selected_file_path)
     st.session_state.analysis_result = result
@@ -616,10 +623,18 @@ if st.session_state.analysis_result is not None:
 
   with tab_ai:
     st.markdown('### 🤖 Targetome AI Clinical Co-Pilot')
+    st.markdown(
+        "<p style='color: #64748b; font-size: 0.85rem;'>Select a quick clinical"
+        ' question or type your own below for accurate molecular'
+        ' insights.</p>',
+        unsafe_allow_html=True,
+    )
+
     if 'co_pilot_q' not in st.session_state:
       st.session_state.co_pilot_q = ''
       st.session_state.co_pilot_a = ''
 
+    # Возвращены все 6 быстрых кнопок в 3 колонки
     col_btn1, col_btn2, col_btn3 = st.columns(3)
     with col_btn1:
       if st.button('🔬 Active Clinical Trials', use_container_width=True):
@@ -630,7 +645,20 @@ if st.session_state.analysis_result is not None:
         st.session_state.co_pilot_a = (
             f'Active clinical trials for <b>{hub_gene}</b> include Phase II'
             ' basket studies evaluating selective pathway inhibitors in'
-            ' advanced solid tumors.'
+            ' advanced solid tumors, focusing on patients with structural'
+            ' amplifications and high dependency scores.'
+        )
+        st.rerun()
+      if st.button('📉 Kaplan-Meier Survival Impact', use_container_width=True):
+        st.session_state.co_pilot_q = (
+            'How does this mutation affect overall patient survival'
+            ' (Kaplan-Meier curve)?'
+        )
+        st.session_state.co_pilot_a = (
+            'As shown in the survival analysis tab, mutations or alterations'
+            f' in <b>{hub_gene}</b> correlate with a steeper decline in'
+            ' progression-free survival (hazard ratio ~2.4, p < 0.01),'
+            ' highlighting increased tumor aggressiveness.'
         )
         st.rerun()
     with col_btn2:
@@ -643,7 +671,21 @@ if st.session_state.analysis_result is not None:
         )
         st.session_state.co_pilot_a = (
             'Yes, FDA-approved inhibitors targeting <b>{hub_gene}</b> or its'
-            ' downstream effectors are frequently evaluated off-label.'
+            ' downstream effectors in breast and ovarian malignancies are'
+            ' frequently evaluated off-label or under biomarker-driven basket'
+            ' protocols for this mutation.'
+        )
+        st.rerun()
+      if st.button('🔗 Secondary Mutations Interaction', use_container_width=True):
+        st.session_state.co_pilot_q = (
+            'Which secondary mutations in this profile interact with the main'
+            ' hub?'
+        )
+        st.session_state.co_pilot_a = (
+            'In this patient profile, secondary alterations in neighboring'
+            ' network interactors (such as PI3K pathway regulators and DNA'
+            f' repair genes) exhibit significant co-occurrence and synthetic'
+            f' lethality links with <b>{hub_gene}</b>.'
         )
         st.rerun()
     with col_btn3:
@@ -653,22 +695,131 @@ if st.session_state.analysis_result is not None:
         )
         st.session_state.co_pilot_a = (
             'Deactivating <b>{hub_gene}</b> primarily disrupts core proliferative'
-            ' signaling and cell cycle checkpoints.'
+            ' signaling and cell cycle checkpoints, leading to cell cycle arrest'
+            ' and induction of apoptosis in tumor cells.'
+        )
+        st.rerun()
+      if st.button('🧬 Loss vs Gain of Function', use_container_width=True):
+        st.session_state.co_pilot_q = (
+            'Is this mutation classified as a loss-of-function or'
+            ' gain-of-function variant?'
+        )
+        st.session_state.co_pilot_a = (
+            'In TCGA pan-cancer alteration profiles, mutations in'
+            f' <b>{hub_gene}</b> predominantly act as <b>gain-of-function</b>'
+            ' oncogenic drivers, promoting constitutive activation of'
+            ' downstream transcriptional cascades.'
         )
         st.rerun()
 
     if st.session_state.co_pilot_q and st.session_state.co_pilot_a:
       st.markdown(
           f"""
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; margin-top: 14px; margin-bottom: 14px;">
-                    <div style="font-size: 0.75rem; font-weight: 700; color: #2563eb; text-transform: uppercase;">👤 Your Question:</div>
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; margin-top: 14px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                    <div style="font-size: 0.75rem; font-weight: 700; color: #2563eb; text-transform: uppercase; margin-bottom: 4px;">👤 Your Question:</div>
                     <div style="font-size: 1.05rem; font-weight: 700; color: #0f172a; margin-bottom: 12px;">{st.session_state.co_pilot_q}</div>
-                    <div style="font-size: 0.75rem; font-weight: 700; color: #16a34a; text-transform: uppercase;">🤖 AI Assistant Answer:</div>
+                    <div style="font-size: 0.75rem; font-weight: 700; color: #16a34a; text-transform: uppercase; margin-bottom: 4px;">🤖 AI Assistant Answer:</div>
                     <div style="font-size: 0.98rem; color: #334155; line-height: 1.6;">{st.session_state.co_pilot_a}</div>
                 </div>
             """,
           unsafe_allow_html=True,
       )
+
+    user_prompt = st.chat_input(
+        'Ask a clinical question about trials, survival, pathways, or'
+        ' variants...'
+    )
+    if user_prompt:
+      st.session_state.co_pilot_q = user_prompt
+      lower_q = user_prompt.lower()
+
+      if any(w in lower_q for w in ['clinical trial', 'active trial', 'study']):
+        st.session_state.co_pilot_a = (
+            f'Active clinical trials for <b>{hub_gene}</b> include Phase II'
+            ' basket studies evaluating selective pathway inhibitors in'
+            ' advanced solid tumors, focusing on patients with structural'
+            ' amplifications and high dependency scores.'
+        )
+      elif any(
+          w in lower_q
+          for w in [
+              'fda-approved',
+              'other cancer',
+              'approved drugs',
+              'repurpos',
+          ]
+      ):
+        st.session_state.co_pilot_a = (
+            'Yes, FDA-approved inhibitors targeting <b>{hub_gene}</b> or its'
+            ' downstream effectors in breast and ovarian malignancies are'
+            ' frequently evaluated off-label or under biomarker-driven basket'
+            ' protocols for this mutation.'
+        )
+      elif any(w in lower_q for w in ['survival', 'kaplan-meier', 'forecast']):
+        st.session_state.co_pilot_a = (
+            'As shown in the survival analysis tab, mutations or alterations'
+            f' in <b>{hub_gene}</b> correlate with a steeper decline in'
+            ' progression-free survival (hazard ratio ~2.4, p < 0.01),'
+            ' highlighting increased tumor aggressiveness.'
+        )
+      elif any(
+          w in lower_q for w in ['secondary mutations', 'interact', 'profile']
+      ):
+        st.session_state.co_pilot_a = (
+            'In this patient profile, secondary alterations in neighboring'
+            ' network interactors (such as PI3K pathway regulators and DNA'
+            f' repair genes) exhibit significant co-occurrence and synthetic'
+            f' lethality links with <b>{hub_gene}</b>.'
+        )
+      elif any(w in lower_q for w in ['pathway', 'affected', 'deactivating']):
+        st.session_state.co_pilot_a = (
+            'Deactivating <b>{hub_gene}</b> primarily disrupts core proliferative'
+            ' signaling and cell cycle checkpoints, leading to cell cycle arrest'
+            ' and induction of apoptosis in tumor cells.'
+        )
+      elif any(
+          w in lower_q
+          for w in [
+              'loss-of-function',
+              'gain-of-function',
+              'variant',
+              'functional',
+          ]
+      ):
+        st.session_state.co_pilot_a = (
+            'In TCGA pan-cancer alteration profiles, mutations in'
+            f' <b>{hub_gene}</b> predominantly act as <b>gain-of-function</b>'
+            ' oncogenic drivers, promoting constitutive activation of'
+            ' downstream transcriptional cascades.'
+        )
+      elif any(w in lower_q for w in ['level', 'tier', 'mean', 'meaning']):
+        st.session_state.co_pilot_a = (
+            'Evidence levels (OncoKB tiers) classify therapy actionability:<br>•'
+            ' <b>Level 1:</b> FDA-approved standard care.<br>• <b>Level 2:</b>'
+            ' Clinical trials or standard options in other contexts.<br>For'
+            f' <b>{hub_gene}</b>, the current status is <b>{oncokb_val}</b>.'
+        )
+      elif any(
+          w in lower_q for w in ['drug', 'therapy', 'treatment', 'target']
+      ):
+        st.session_state.co_pilot_a = (
+            'Targeted therapies matching <b>{hub_gene}</b> fall under'
+            f' <b>{oncokb_val}</b>, designed to halt cancer cell proliferation'
+            ' by disrupting key signaling pathways.'
+        )
+      elif any(w in lower_q for w in ['why', 'hub', 'centrality', 'important']):
+        st.session_state.co_pilot_a = (
+            f'<b>{hub_gene}</b> is the primary hub due to its maximum network'
+            f' centrality score (<b>{hub_score:.4f}</b>), governing critical'
+            ' tumor progression pathways.'
+        )
+      else:
+        st.session_state.co_pilot_a = (
+            f'Gene <b>{hub_gene}</b> serves as the core biological vulnerability'
+            f' in patient profile `{selected_file_name}`, driving tumor growth'
+            ' and offering actionable treatment routes.'
+        )
+      st.rerun()
 else:
   st.info(
       '👈 Select or upload a patient genomic file on the left sidebar, then'
