@@ -18,7 +18,7 @@ st.set_page_config(
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
-# CSS Styles with Noticeable Pulsing Animation & Clean UI
+# CSS Styles
 css_template = """
     <style>
     .stApp {
@@ -59,23 +59,10 @@ css_template = """
         margin-bottom: 6px;
     }
 
-    /* Highly Noticeable Pulsing Animation for Main Target Gene Card */
     @keyframes noticeablePulse {
-        0% {
-            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
-            border-color: #ef4444;
-            transform: scale(1);
-        }
-        50% {
-            box-shadow: 0 0 0 14px rgba(239, 68, 68, 0);
-            border-color: #dc2626;
-            transform: scale(1.02);
-        }
-        100% {
-            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
-            border-color: #ef4444;
-            transform: scale(1);
-        }
+        0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); border-color: #ef4444; transform: scale(1); }
+        50% { box-shadow: 0 0 0 14px rgba(239, 68, 68, 0); border-color: #dc2626; transform: scale(1.02); }
+        100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); border-color: #ef4444; transform: scale(1); }
     }
 
     .stat-box-alert {
@@ -107,10 +94,6 @@ css_template = """
     [data-testid="stSidebar"] {
         background-color: #f1f5f9 !important;
         border-right: 1px solid #e2e8f0;
-        padding-top: 0rem !important;
-    }
-
-    [data-testid="stSidebar"] > div:first-child {
         padding-top: 0rem !important;
     }
     </style>
@@ -172,14 +155,15 @@ run_btn = st.sidebar.button(
     '🚀 Run AI Analysis', type='primary', use_container_width=True
 )
 
-# Блок благодарности источнику данных (cBioPortal) в сайдбаре
+# БЛАГОДАРНОСТЬ ИСТОЧНИКУ ДАННЫХ В САЙДБАРЕ
 st.sidebar.markdown('---')
 st.sidebar.markdown(
-    '<div style="font-size: 0.75rem; color: #64748b; line-height: 1.4;">Data'
-    ' source & studies courtesy of <a'
-    ' href="https://www.cbioportal.org/study/summary?id=brca_tcga_pan_can_atlas_2018"'
-    ' target="_blank">cBioPortal for Cancer Genomics</a> (TCGA PanCancer'
-    ' Atlas).</div>',
+    '<div style="font-size: 0.73rem; color: #64748b; line-height: 1.4;">'
+    '🙏 <b>Data Acknowledgement:</b><br>'
+    'Genomic patient profiles and TCGA cohorts courtesy of '
+    '<a href="https://www.cbioportal.org/study/summary?id=brca_tcga_pan_can_atlas_2018" target="_blank">cBioPortal for Cancer Genomics</a> '
+    '(Breast Invasive Carcinoma, PanCancer Atlas[cite: 8]).'
+    '</div>',
     unsafe_allow_html=True,
 )
 
@@ -189,12 +173,10 @@ if 'analysis_result' not in st.session_state:
 if 'last_selected_file' not in st.session_state:
   st.session_state.last_selected_file = None
 
-# Если выбрали другого пациента в списке — сбрасываем старый результат
 if selected_file_path != st.session_state.last_selected_file:
   st.session_state.last_selected_file = selected_file_path
   st.session_state.analysis_result = None
 
-# Расчет запускается СТРОГО по нажатию кнопки Run AI Analysis
 if run_btn and selected_file_path:
   with st.spinner('AI is analyzing patient mutations...'):
     result, status = calculate_hub(selected_file_path)
@@ -209,7 +191,7 @@ st.markdown(
         </div>
         <div style="font-size: 0.78rem; color: #475569; margin-top: 2px;">
             <b>Simple explanation:</b> Maps patient genomic data into 3D cellular networks to locate the main target gene driving tumor growth.
-            <span style="color: #2563eb; font-weight: 600; margin-left: 10px;">📊 Data: TCGA PanCancer Atlas</span>
+            <span style="color: #2563eb; font-weight: 600; margin-left: 10px;">📊 Data: TCGA PanCancer Atlas via <a href="https://www.cbioportal.org/study/summary?id=brca_tcga_pan_can_atlas_2018" target="_blank">cBioPortal</a>[cite: 8]</span>
         </div>
     </div>
 """,
@@ -228,7 +210,6 @@ if st.session_state.analysis_result is not None:
   )
   unique_genes_count = result.get('unique_genes_count', 0)
 
-  # Dynamic Mutation Types calculation per patient file
   var_counts = {}
   if df_full is not None and 'variant_classification' in df_full.columns:
     var_counts = df_full['variant_classification'].value_counts().to_dict()
@@ -246,7 +227,6 @@ if st.session_state.analysis_result is not None:
         ),
     }
 
-  # Dynamic Copy Number Changes calculation based on patient mutation profile
   np.random.seed(total_mutations + len(selected_file_name) * 3)
   amp_c = max(3, int(total_mutations * 0.10))
   gain_c = max(5, int(total_mutations * 0.22))
@@ -374,7 +354,6 @@ if st.session_state.analysis_result is not None:
         z = cz + r * np.cos(phi)
         pos_3d[node] = (x, y, z)
 
-      # Pearlescent, ribbed, and bumpy 3D cell membrane
       phi_m = np.linspace(0, np.pi, 35)
       theta_m = np.linspace(0, 2 * np.pi, 35)
       PHI, THETA = np.meshgrid(phi_m, theta_m)
