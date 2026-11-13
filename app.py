@@ -26,10 +26,26 @@ css_template = """
         color: #0f172a !important;
     }
 
-    header, [data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecoration"] {
+    /* Скрываем лишние тулбары и декорации, но оставляем шапку и кнопку сайдбара доступными */
+    [data-testid="stToolbar"], [data-testid="stDecoration"] {
         display: none !important;
-        height: 0px !important;
-        visibility: hidden !important;
+    }
+
+    header[data-testid="stHeader"] {
+        background: transparent !important;
+        height: auto !important;
+    }
+
+    /* Делаем кнопку возврата боковой панели заметной и кликабельной */
+    [data-testid="stSidebarCollapsedControl"] {
+        display: flex !important;
+        visibility: visible !important;
+        color: #0f172a !important;
+        background-color: #f1f5f9 !important;
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 6px !important;
+        margin: 8px !important;
+        z-index: 999999 !important;
     }
 
     .main .block-container, [data-testid="stMainBlockContainer"] { 
