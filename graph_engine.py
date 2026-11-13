@@ -3,37 +3,14 @@ import pandas as pd
 
 
 def calculate_hub(file_path, include_cna=True):
-  """Parses cBioPortal / TCGA TSV files strictly using real file data
-
-  without any hardcoded fallback defaults.
-  """
+  """Parses patient genomic data strictly using the first column of the TSV file."""
   try:
     # 1. Чтение файла TSV
     df = pd.read_csv(file_path, sep='\t', comment='#', low_memory=False)
     df.columns = [str(c).strip().lstrip('\ufeff').lower() for c in df.columns]
 
-    # 2. Поиск колонки с генами (ищем Hugo_Symbol, Gene или берем первую текстовую)
-    gene_col = None
-    for col in df.columns:
-      if any(
-          k in col
-          for k in ['hugo_symbol', 'gene_symbol', 'gene', 'symbol', 'hugo']
-      ):
-        gene_col = col
-        break
-
-    if not gene_col:
-      for col in df.columns:
-        if (
-            df[col].dtype == 'object'
-            and 'unnamed' not in col
-            and 'id' not in col
-        ):
-          gene_col = col
-          break
-
-    if not gene_col and len(df.columns) > 0:
-      gene_col = df.columns[0]
+    # СТРОГО берем самую первую колонку файла (индекс 0) как список генов
+    gene_col = df.columns[0]
 
     # Фильтрация по CNA (если выключено, убираем строки с амплификациями/делециями)
     filtered_df = df
@@ -69,16 +46,18 @@ def calculate_hub(file_path, include_cna=True):
         if filtered_df.empty:
           filtered_df = df
 
-    # Извлекаем реальные гены из найденной колонки
+    # Собираем значения из первой колонки
     patient_genes = []
-    if gene_col and gene_col in filtered_df.columns:
+    if gene_col in filtered_df.columns:
       raw_values = filtered_df[gene_col].dropna().astype(str).tolist()
       for val in raw_values:
         clean_val = val.strip().upper()
+        # Исключаем только явные заголовки таблицы
         if clean_val and clean_val not in [
             'HUGO_SYMBOL',
             'GENE_SYMBOL',
             'GENE',
+            'SYMBOL',
             'NAN',
             'NONE',
             'NA',
@@ -144,7 +123,6 @@ def calculate_hub(file_path, include_cna=True):
     return result, 'Success'
 
   except Exception as e:
-    # Возвращаем минимальный пустой каркас в случае критического сбоя чтения файла
     empty_df = pd.DataFrame()
     G = nx.Graph()
     G.add_node('TP53')
