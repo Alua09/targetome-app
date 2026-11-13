@@ -96,6 +96,14 @@ css_template = """
         border-right: 1px solid #e2e8f0;
         padding-top: 0rem !important;
     }
+
+    /* Оптимизация сайдбара для мобильных устройств */
+    @media (max-width: 768px) {
+        [data-testid="stSidebar"] {
+            width: 80% !important;
+            max-width: 320px !important;
+        }
+    }
     </style>
 """
 
@@ -348,7 +356,7 @@ if st.session_state.analysis_result is not None:
         )
         theta = i * 2.39996
         phi = np.arccos(
-            max(-1.0, min(1.0, 1 - 2 * ((i + 0.5) / len(other_nodes))))
+            max(-1.0, min(1.0, 1.0 - 2.0 * ((i + 0.5) / len(other_nodes))))
         )
         x = cx + r * np.sin(phi) * np.cos(theta)
         y = cy + r * np.sin(phi) * np.sin(theta)
