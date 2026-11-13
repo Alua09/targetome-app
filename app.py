@@ -8,7 +8,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-# Page Configuration - Single Screen Mode & Expanded Sidebar
+# Page Configuration
 st.set_page_config(
     page_title='Targetome | AI Precision Oncology Platform',
     page_icon='🎯',
@@ -18,34 +18,12 @@ st.set_page_config(
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
-# CSS Styles
+# Clean CSS Styles (without hiding essential header controls)
 css_template = """
     <style>
     .stApp {
         background-color: #ffffff !important;
         color: #0f172a !important;
-    }
-
-    /* Скрываем лишние тулбары и декорации, но оставляем шапку и кнопку сайдбара доступными */
-    [data-testid="stToolbar"], [data-testid="stDecoration"] {
-        display: none !important;
-    }
-
-    header[data-testid="stHeader"] {
-        background: transparent !important;
-        height: auto !important;
-    }
-
-    /* Делаем кнопку возврата боковой панели заметной и кликабельной */
-    [data-testid="stSidebarCollapsedControl"] {
-        display: flex !important;
-        visibility: visible !important;
-        color: #0f172a !important;
-        background-color: #f1f5f9 !important;
-        border: 1px solid #cbd5e1 !important;
-        border-radius: 6px !important;
-        margin: 8px !important;
-        z-index: 999999 !important;
     }
 
     .main .block-container, [data-testid="stMainBlockContainer"] { 
@@ -113,7 +91,6 @@ css_template = """
         padding-top: 0rem !important;
     }
 
-    /* Оптимизация сайдбара для мобильных устройств */
     @media (max-width: 768px) {
         [data-testid="stSidebar"] {
             width: 80% !important;
@@ -179,7 +156,6 @@ run_btn = st.sidebar.button(
     '🚀 Run AI Analysis', type='primary', use_container_width=True
 )
 
-# БЛАГОДАРНОСТЬ ИСТОЧНИКУ ДАННЫХ В САЙДБАРЕ
 st.sidebar.markdown('---')
 st.sidebar.markdown(
     '<div style="font-size: 0.73rem; color: #64748b; line-height: 1.4;">'
@@ -201,7 +177,6 @@ if selected_file_path != st.session_state.last_selected_file:
   st.session_state.last_selected_file = selected_file_path
   st.session_state.analysis_result = None
 
-# Расчет запускается по кнопке с передачей состояния чекбокса include_cna
 if run_btn and selected_file_path:
   with st.spinner('AI is analyzing patient mutations...'):
     result, status = calculate_hub(selected_file_path, include_cna=include_cna)
@@ -275,7 +250,6 @@ if st.session_state.analysis_result is not None:
     }
     oncokb_val = smart_oncokb.get(hub_gene, 'Level 2 (Clinical Trial Options)')
 
-  # TOP METRIC CARDS
   m1, m2, m3, m4 = st.columns(4)
   with m1:
     st.markdown(
@@ -322,7 +296,6 @@ if st.session_state.analysis_result is not None:
         unsafe_allow_html=True,
     )
 
-  # TABS
   tab_3d, tab_analytics, tab_table, tab_ai = st.tabs([
       '🧬 3D Tumor Network',
       '📈 Multi-Omic & Survival Analytics',
