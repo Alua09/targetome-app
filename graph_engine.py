@@ -1,11 +1,12 @@
 import networkx as nx
 import pandas as pd
+import re
 
 
 def calculate_hub(file_path, include_cna=True):
-    """Parses patient genomic data precisely, matching cBioPortal row counts
+    """Strictly parses and validates true gene symbols from patient reports,
 
-    while safely filtering out noise and headers.
+    excluding coordinates, numbers, and noise.
     """
     try:
         with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
@@ -14,8 +15,9 @@ def calculate_hub(file_path, include_cna=True):
         records = []
         patient_genes = []
 
-        # Игнорируем заголовки, комментарии и пустые строки,
-        # собирая только реальные записи мутаций с именами генов
+        # Строгий паттерн для настоящего названия гена (начинается с буквы, далее буквы/цифры/дефисы)
+        gene_regex = re.compile(r'^[A-Z][A-Z0-9\-_]{1,10}$')
+
         for line in lines:
             stripped = line.strip()
             if not stripped or stripped.startswith(
@@ -24,8 +26,22 @@ def calculate_hub(file_path, include_cna=True):
             parts = stripped.split()
             if parts:
                 g = parts[0].upper()
-                # Отсекаем технические маркеры, если они ошибочно попали в первую колонкУ
-                if g not in ['N/A', 'SNP', 'AMP', 'DEL', 'GAIN', 'HOMDEL', 'SHALLOW']:
+                # Проверяем, что это действительно ген, а не цифра, координата или служебное слово
+                if (
+                        gene_regex.match(g)
+                        and not g.isdigit()
+                        and g not in [
+                    'N/A',
+                    'SNP',
+                    'AMP',
+                    'DEL',
+                    'GAIN',
+                    'HOMDEL',
+                    'SHALLOW',
+                    'YES',
+                    'NO',
+                ]
+                ):
                     patient_genes.append(g)
                     records.append({'Gene': g, 'Line': stripped})
 
@@ -56,9 +72,6 @@ def calculate_hub(file_path, include_cna=True):
         hub = max(centrality, key=centrality.get) if centrality else 'TP53'
         score = centrality.get(hub, 0.5)
 
-        # Точное количество мутаций без учета системных шапок
-        total_mutations_count = len(records)
-
         result = {
             'hub': hub,
             'score': score,
@@ -66,7 +79,7 @@ def calculate_hub(file_path, include_cna=True):
             'centrality': centrality,
             'dataframe': filtered_df,
             'unique_genes_count': len(unique_genes),
-            'total_mutations': total_mutations_count,
+            'total_mutations': len(records),
         }
         return result, 'Success'
 
