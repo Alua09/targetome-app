@@ -716,7 +716,7 @@ if st.session_state.analysis_result is not None:
             ' this mutation?'
         )
         st.session_state.co_pilot_a = (
-            'Yes, FDA-approved inhibitors targeting <b>{hub_gene}</b> or its'
+            f'Yes, FDA-approved inhibitors targeting <b>{hub_gene}</b> or its'
             ' downstream effectors in breast and ovarian malignancies are'
             ' frequently evaluated off-label or under biomarker-driven basket'
             ' protocols for this mutation.'
