@@ -740,7 +740,7 @@ if st.session_state.analysis_result is not None:
             'What pathway is most affected by deactivating this target?'
         )
         st.session_state.co_pilot_a = (
-            'Deactivating <b>{hub_gene}</b> primarily disrupts core proliferative'
+            f'Deactivating <b>{hub_gene}</b> primarily disrupts core proliferative'
             ' signaling and cell cycle checkpoints, leading to cell cycle arrest'
             ' and induction of apoptosis in tumor cells.'
         )
@@ -819,7 +819,7 @@ if st.session_state.analysis_result is not None:
         )
       elif any(w in lower_q for w in ['pathway', 'affected', 'deactivating']):
         st.session_state.co_pilot_a = (
-            'Deactivating <b>{hub_gene}</b> primarily disrupts core proliferative'
+            f'Deactivating <b>{hub_gene}</b> primarily disrupts core proliferative'
             ' signaling and cell cycle checkpoints, leading to cell cycle arrest'
             ' and induction of apoptosis in tumor cells.'
         )
